@@ -122,7 +122,7 @@
             padding: 0 10px;
         }
 
-        /* Grid Layouts - Spaced Out & Tilted */
+        /* Grid Layouts - Spaced Out & Uniform Tilt */
         .grid {
             position: relative;
             z-index: 5;
@@ -130,21 +130,21 @@
             justify-content: center;
             align-content: center;
             width: 90vw;
-            max-width: 800px;
-            height: 70vh;
-            max-height: 700px;
+            max-width: 850px;
+            height: 72vh;
+            max-height: 720px;
         }
 
         .grid-3 {
-            grid-template-columns: repeat(3, minmax(80px, 1fr));
-            grid-template-rows: repeat(3, minmax(80px, 1fr));
-            gap: clamp(20px, 4vw, 40px);
+            grid-template-columns: repeat(3, minmax(90px, 1fr));
+            grid-template-rows: repeat(3, minmax(90px, 1fr));
+            gap: clamp(25px, 5vw, 45px);
         }
 
         .grid-4 {
-            grid-template-columns: repeat(4, minmax(65px, 1fr));
-            grid-template-rows: repeat(4, minmax(65px, 1fr));
-            gap: clamp(15px, 3vw, 30px);
+            grid-template-columns: repeat(4, minmax(75px, 1fr));
+            grid-template-rows: repeat(4, minmax(75px, 1fr));
+            gap: clamp(18px, 4vw, 35px);
         }
 
         .slot-wrapper {
@@ -162,23 +162,18 @@
             background-position: center;
             cursor: pointer;
             transition: transform 0.1s;
-            /* Tilted a little bit as requested */
+            /* All guns tilted into the exact same angle (-5deg) */
             transform: rotate(-5deg);
         }
 
-        /* Stagger rotation for variety */
-        .slot-wrapper:nth-child(even) .slot {
-            transform: rotate(6deg);
-        }
-        .slot-wrapper:nth-child(3n) .slot {
-            transform: rotate(-3deg);
-        }
-        .slot-wrapper:nth-child(5n) .slot {
-            transform: rotate(4deg);
+        /* Specific fix for bondwithgun to make it properly sized and match/exceed gun footprint */
+        .slot.is-bond {
+            background-size: contain;
+            transform: rotate(-5deg) scale(1.15); /* Slightly larger than normal guns */
         }
 
         .slot:active {
-            transform: scale(0.9) rotate(0deg);
+            transform: scale(0.95) rotate(-5deg);
         }
 
         /* Loss Screen / Kidnap */
@@ -331,8 +326,7 @@
     let fails = 0;
     let timer = 60;
     let timerInterval = null;
-    let activeTimers = []; // Track multiple timers for multiple bonds
-    let bondSlotIndices = []; // Track active bond slot indexes
+    let activeBonds = {}; // Map slotIndex -> timeoutId for individual active bonds
     let gameActive = false;
     let lossStatePhase = 0; 
 
@@ -379,6 +373,7 @@
         fails = 0;
         timer = 60;
         gameActive = true;
+        clearAllBonds();
         updateHud();
 
         gridElement.innerHTML = '';
@@ -400,7 +395,7 @@
             }
         }, 1000);
 
-        scheduleBondAppearances();
+        scheduleNextSpawn();
     }
 
     function updateHud() {
@@ -419,7 +414,6 @@
             slot.style.backgroundImage = "url('gun.png')";
             slot.dataset.index = i;
             
-            // Support both touch and click smoothly on mobile
             slot.addEventListener('pointerdown', (e) => {
                 e.preventDefault();
                 handleSlotClick(i);
@@ -430,72 +424,81 @@
         }
     }
 
-    function getSpawnInterval() {
-        // Progressively harder intervals
-        const intervals = [0, 2200, 1600, 1200, 900];
-        return intervals[currentLevel] || 900;
+    function getSpawnDelay() {
+        const delays = [0, 2000, 1500, 1100, 800];
+        return delays[currentLevel] || 800;
     }
 
-    function scheduleBondAppearances() {
+    function scheduleNextSpawn() {
+        if (!gameActive) return;
+
+        let delay = Math.random() * 600 + getSpawnDelay();
+        setTimeout(() => {
+            if (!gameActive) return;
+            spawnBond();
+            scheduleNextSpawn();
+        }, delay);
+    }
+
+    function spawnBond() {
         if (!gameActive) return;
 
         const totalSlots = currentLevel <= 2 ? 9 : 16;
-        let delay = Math.random() * 800 + getSpawnInterval();
+        let maxSimultaneous = (currentLevel === 4) ? 2 : 1;
 
-        let timerId = setTimeout(() => {
-            if (!gameActive) return;
+        let availableSlots = [];
+        const slots = document.querySelectorAll('.slot');
 
-            // Determine how many bonds can appear simultaneously (Level 4 allows 2)
-            let maxBonds = (currentLevel === 4) ? 2 : 1;
-
-            for (let b = 0; b < maxBonds; b++) {
-                let availableSlots = [];
-                const slots = document.querySelectorAll('.slot');
-                
-                for (let i = 0; i < totalSlots; i++) {
-                    if (!bondSlotIndices.includes(i) && slots[i].style.backgroundImage.indexOf('gun.png') !== -1 && slots[i].style.backgroundImage.indexOf('bondwithgun.png') === -1) {
-                        availableSlots.push(i);
-                    }
-                }
-
-                if (availableSlots.length > 0) {
-                    let randomIndex = availableSlots[Math.floor(Math.random() * availableSlots.length)];
-                    bondSlotIndices.push(randomIndex);
-                    slots[randomIndex].style.backgroundImage = "url('bondwithgun.png')";
-
-                    // Bond shoots after 2 seconds instead of 3
-                    let shootTimerId = setTimeout(() => {
-                        if (!gameActive) return;
-                        triggerShotAnimation(randomIndex);
-                    }, 2000);
-
-                    activeTimers.push(shootTimerId);
-                }
+        for (let i = 0; i < totalSlots; i++) {
+            if (!(i in activeBonds) && !slots[i].classList.contains('is-bond')) {
+                availableSlots.push(i);
             }
+        }
 
-            // Loop next appearance
-            scheduleBondAppearances();
+        // Spawn up to maxSimultaneous bonds if slots are available
+        let currentSpawnCount = Object.keys(activeBonds).length;
+        let canSpawn = Math.min(maxSimultaneous - currentSpawnCount, availableSlots.length);
 
-        }, delay);
+        for (let s = 0; s < canSpawn; s++) {
+            if (availableSlots.length === 0) break;
+            let randIdx = Math.floor(Math.random() * availableSlots.length);
+            let slotIndex = availableSlots.splice(randIdx, 1)[0];
 
-        activeTimers.push(timerId);
+            let slot = slots[slotIndex];
+            slot.style.backgroundImage = "url('bondwithgun.png')";
+            slot.classList.add('is-bond');
+
+            // 2 seconds to shoot before player gets hit
+            let bondTimer = setTimeout(() => {
+                if (!gameActive) return;
+                // If this specific bond hasn't been clicked in time, player gets shot!
+                triggerShotAnimation();
+            }, 2000);
+
+            activeBonds[slotIndex] = bondTimer;
+        }
     }
 
-    function clearAllTimers() {
-        activeTimers.forEach(id => clearTimeout(id));
-        activeTimers = [];
+    function clearAllBonds() {
+        for (let idx in activeBonds) {
+            clearTimeout(activeBonds[idx]);
+        }
+        activeBonds = {};
     }
 
     function handleSlotClick(index) {
         if (!gameActive) return;
 
         const slots = document.querySelectorAll('.slot');
-        let bondIndexPos = bondSlotIndices.indexOf(index);
+        let slot = slots[index];
 
-        if (bondIndexPos !== -1) {
-            // Correct click! Hit Bond
-            bondSlotIndices.splice(bondIndexPos, 1);
-            slots[index].style.backgroundImage = "url('gun.png')";
+        // Check if player clicked an active bond in time
+        if (index in activeBonds) {
+            clearTimeout(activeBonds[index]);
+            delete activeBonds[index];
+
+            slot.style.backgroundImage = "url('gun.png')";
+            slot.classList.remove('is-bond');
 
             if (timer <= 0) {
                 winLevel();
@@ -503,9 +506,9 @@
         }
     }
 
-    function triggerShotAnimation(targetIndex) {
+    function triggerShotAnimation() {
         gameActive = false;
-        clearAllTimers();
+        clearAllBonds();
         clearInterval(timerInterval);
 
         // Flash screen red
@@ -522,8 +525,10 @@
                 showLossScreen();
             } else {
                 const slots = document.querySelectorAll('.slot');
-                slots.forEach(slot => slot.style.backgroundImage = "url('gun.png')");
-                bondSlotIndices = [];
+                slots.forEach(slot => {
+                    slot.style.backgroundImage = "url('gun.png')";
+                    slot.classList.remove('is-bond');
+                });
 
                 gameActive = true;
                 timerInterval = setInterval(() => {
@@ -531,14 +536,14 @@
                     updateHud();
                     if (timer <= 0) winLevel();
                 }, 1000);
-                scheduleBondAppearances();
+                scheduleNextSpawn();
             }
         }, 800);
     }
 
     function winLevel() {
         gameActive = false;
-        clearAllTimers();
+        clearAllBonds();
         clearInterval(timerInterval);
         hud.classList.add('hidden');
         gameBoard.classList.add('hidden');
