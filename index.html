@@ -2,12 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>007 Lems Bond: The Better Shooter</title>
     <style>
         * {
             box-sizing: border-box;
             user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
         }
         body, html {
             margin: 0;
@@ -36,7 +38,7 @@
             content: '';
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.75);
             pointer-events: none;
             z-index: 1;
         }
@@ -72,16 +74,17 @@
             text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000;
             z-index: 12;
             transition: opacity 0.5s ease;
+            padding: 0 20px;
         }
 
         #game-title h1 {
-            font-size: 3.5rem;
+            font-size: clamp(2.2rem, 6vw, 3.5rem);
             margin: 0;
             letter-spacing: 2px;
         }
 
         #game-title h2 {
-            font-size: 1.8rem;
+            font-size: clamp(1.2rem, 3.5vw, 1.8rem);
             margin: 10px 0 0 0;
             color: #ccc;
         }
@@ -106,49 +109,76 @@
         /* HUD */
         #hud {
             position: absolute;
-            top: 20px;
+            top: 15px;
             left: 0;
             width: 100%;
             display: flex;
             justify-content: space-around;
             color: #fff;
-            font-size: 1.5rem;
+            font-size: clamp(1rem, 4vw, 1.5rem);
             font-weight: bold;
             z-index: 5;
             text-shadow: 2px 2px 4px #000;
+            padding: 0 10px;
         }
 
-        /* Grid Layouts */
+        /* Grid Layouts - Spaced Out & Tilted */
         .grid {
             position: relative;
             z-index: 5;
             display: grid;
-            gap: 15px;
             justify-content: center;
             align-content: center;
+            width: 90vw;
+            max-width: 800px;
+            height: 70vh;
+            max-height: 700px;
         }
 
         .grid-3 {
-            grid-template-columns: repeat(3, 120px);
-            grid-template-rows: repeat(3, 120px);
+            grid-template-columns: repeat(3, minmax(80px, 1fr));
+            grid-template-rows: repeat(3, minmax(80px, 1fr));
+            gap: clamp(20px, 4vw, 40px);
         }
 
         .grid-4 {
-            grid-template-columns: repeat(4, 100px);
-            grid-template-rows: repeat(4, 100px);
+            grid-template-columns: repeat(4, minmax(65px, 1fr));
+            grid-template-rows: repeat(4, minmax(65px, 1fr));
+            gap: clamp(15px, 3vw, 30px);
+        }
+
+        .slot-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
         .slot {
             width: 100%;
             height: 100%;
-            background-size: cover;
+            background-size: contain;
+            background-repeat: no-repeat;
             background-position: center;
             cursor: pointer;
             transition: transform 0.1s;
+            /* Tilted a little bit as requested */
+            transform: rotate(-5deg);
+        }
+
+        /* Stagger rotation for variety */
+        .slot-wrapper:nth-child(even) .slot {
+            transform: rotate(6deg);
+        }
+        .slot-wrapper:nth-child(3n) .slot {
+            transform: rotate(-3deg);
+        }
+        .slot-wrapper:nth-child(5n) .slot {
+            transform: rotate(4deg);
         }
 
         .slot:active {
-            transform: scale(0.95);
+            transform: scale(0.9) rotate(0deg);
         }
 
         /* Loss Screen / Kidnap */
@@ -167,12 +197,14 @@
 
         .loss-text {
             position: absolute;
-            bottom: 15%;
+            bottom: 12%;
             color: #ff3333;
-            font-size: 3rem;
+            font-size: clamp(1.8rem, 5vw, 3rem);
             font-weight: bold;
             text-shadow: 3px 3px 6px #000;
+            text-align: center;
             animation: pulseText 1s infinite alternate;
+            padding: 0 10px;
         }
 
         @keyframes pulseText {
@@ -191,13 +223,14 @@
         .banner-text {
             position: absolute;
             top: 5%;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             color: #00ffcc;
-            padding: 10px 30px;
-            font-size: 2rem;
+            padding: 8px 20px;
+            font-size: clamp(1.2rem, 4vw, 2rem);
             border-radius: 8px;
             border: 2px solid #00ffcc;
             box-shadow: 0 0 15px #00ffcc;
+            text-align: center;
         }
 
         .instruction-prompt {
@@ -207,8 +240,9 @@
             background: rgba(0,0,0,0.8);
             padding: 8px 16px;
             border-radius: 4px;
-            font-size: 1rem;
+            font-size: clamp(0.9rem, 3vw, 1rem);
             animation: blink 1s infinite;
+            text-align: center;
         }
 
         @keyframes blink {
@@ -277,6 +311,12 @@
         <div class="instruction-prompt">Click to proceed to next level</div>
     </div>
 
+    <!-- Level Clear 2 Screen -->
+    <div id="clear2-screen" class="screen hidden" onclick="handleClearClick()" style="background-image: url('clear2.png');">
+        <div class="banner-text">Level Cleared!</div>
+        <div class="instruction-prompt">Click to proceed to next level</div>
+    </div>
+
     <!-- Victory Screen -->
     <div id="congrats-screen" class="screen hidden" onclick="location.reload()" style="background-image: url('congrats.png');">
         <canvas id="fireworks"></canvas>
@@ -286,15 +326,15 @@
 </div>
 
 <script>
-    let currentStep = 0; // 0: start screen shown, 1: title flashed out waiting for smoke, 2: playing
+    let currentStep = 0; 
     let currentLevel = 1;
     let fails = 0;
     let timer = 60;
     let timerInterval = null;
-    let activeTimer = null;
-    let bondSlotIndex = null;
+    let activeTimers = []; // Track multiple timers for multiple bonds
+    let bondSlotIndices = []; // Track active bond slot indexes
     let gameActive = false;
-    let lossStatePhase = 0; // 0: showing lost.png with "You are kidnapped!", 1: showing kidnap1.png
+    let lossStatePhase = 0; 
 
     const startScreen = document.getElementById('start-screen');
     const gameTitle = document.getElementById('game-title');
@@ -308,24 +348,23 @@
     const lossScreen = document.getElementById('loss-screen');
     const lossMsgContainer = document.getElementById('loss-msg-container');
     const clearScreen = document.getElementById('clear-screen');
+    const clear2Screen = document.getElementById('clear2-screen');
     const congratsScreen = document.getElementById('congrats-screen');
     const shotFlash = document.getElementById('shot-flash');
 
     function handleStartClick() {
         if (currentStep === 0) {
-            // First click: flash out game title
             gameTitle.style.opacity = '0';
             currentStep = 1;
         } else if (currentStep === 1) {
-            // Second click: trigger white smoke swarming up
             currentStep = 2;
             smokeOverlay.classList.add('active');
             setTimeout(() => {
                 startScreen.classList.add('hidden');
                 smokeOverlay.classList.remove('active');
-                smokeOverlay.style.bottom = '-100%'; // reset
+                smokeOverlay.style.bottom = '-100%';
                 initGame();
-            }, 2000); // matches transition time
+            }, 2000);
         }
     }
 
@@ -343,7 +382,8 @@
         updateHud();
 
         gridElement.innerHTML = '';
-        if (currentLevel <= 3) {
+        // Level 1 & 2: 3*3 grid. Level 3 & 4: 4*4 grid.
+        if (currentLevel <= 2) {
             gridElement.className = 'grid grid-3';
             createGridSlots(9);
         } else {
@@ -356,12 +396,11 @@
             timer--;
             updateHud();
             if (timer <= 0) {
-                // Time out counts as a fail/miss
-                triggerMiss();
+                winLevel();
             }
         }, 1000);
 
-        scheduleBondAppearance();
+        scheduleBondAppearances();
     }
 
     function updateHud() {
@@ -372,77 +411,104 @@
 
     function createGridSlots(count) {
         for (let i = 0; i < count; i++) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'slot-wrapper';
+
             const slot = document.createElement('div');
             slot.className = 'slot';
             slot.style.backgroundImage = "url('gun.png')";
             slot.dataset.index = i;
-            slot.addEventListener('click', () => handleSlotClick(i));
-            gridElement.appendChild(slot);
+            
+            // Support both touch and click smoothly on mobile
+            slot.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                handleSlotClick(i);
+            });
+
+            wrapper.appendChild(slot);
+            gridElement.appendChild(wrapper);
         }
     }
 
     function getSpawnInterval() {
-        // Make each level harder by having bond appear faster
-        // Level 1: ~2.5s, Level 2: ~2.0s, Level 3: ~1.5s, Level 4: ~1.0s
-        const intervals = [0, 2500, 2000, 1500, 1000];
-        return intervals[currentLevel] || 1000;
+        // Progressively harder intervals
+        const intervals = [0, 2200, 1600, 1200, 900];
+        return intervals[currentLevel] || 900;
     }
 
-    function scheduleBondAppearance() {
+    function scheduleBondAppearances() {
         if (!gameActive) return;
 
-        const totalSlots = currentLevel <= 3 ? 9 : 16;
-        
-        let delay = Math.random() * 1000 + getSpawnInterval();
-        activeTimer = setTimeout(() => {
+        const totalSlots = currentLevel <= 2 ? 9 : 16;
+        let delay = Math.random() * 800 + getSpawnInterval();
+
+        let timerId = setTimeout(() => {
             if (!gameActive) return;
-            
-            // Pick a random slot
-            const slots = document.querySelectorAll('.slot');
-            bondSlotIndex = Math.floor(Math.random() * totalSlots);
 
-            // Change to bond with gun
-            slots[bondSlotIndex].style.backgroundImage = "url('bondwithgun.png')";
+            // Determine how many bonds can appear simultaneously (Level 4 allows 2)
+            let maxBonds = (currentLevel === 4) ? 2 : 1;
 
-            // Player has 3 seconds to click him before he shoots
-            activeTimer = setTimeout(() => {
-                if (!gameActive) return;
-                // Bond shoots player!
-                triggerShotAnimation();
-            }, 3000);
+            for (let b = 0; b < maxBonds; b++) {
+                let availableSlots = [];
+                const slots = document.querySelectorAll('.slot');
+                
+                for (let i = 0; i < totalSlots; i++) {
+                    if (!bondSlotIndices.includes(i) && slots[i].style.backgroundImage.indexOf('gun.png') !== -1 && slots[i].style.backgroundImage.indexOf('bondwithgun.png') === -1) {
+                        availableSlots.push(i);
+                    }
+                }
+
+                if (availableSlots.length > 0) {
+                    let randomIndex = availableSlots[Math.floor(Math.random() * availableSlots.length)];
+                    bondSlotIndices.push(randomIndex);
+                    slots[randomIndex].style.backgroundImage = "url('bondwithgun.png')";
+
+                    // Bond shoots after 2 seconds instead of 3
+                    let shootTimerId = setTimeout(() => {
+                        if (!gameActive) return;
+                        triggerShotAnimation(randomIndex);
+                    }, 2000);
+
+                    activeTimers.push(shootTimerId);
+                }
+            }
+
+            // Loop next appearance
+            scheduleBondAppearances();
 
         }, delay);
+
+        activeTimers.push(timerId);
+    }
+
+    function clearAllTimers() {
+        activeTimers.forEach(id => clearTimeout(id));
+        activeTimers = [];
     }
 
     function handleSlotClick(index) {
         if (!gameActive) return;
 
         const slots = document.querySelectorAll('.slot');
+        let bondIndexPos = bondSlotIndices.indexOf(index);
 
-        if (index === bondSlotIndex) {
-            // Correct click! Player shot Bond successfully
-            clearTimeout(activeTimer);
-            slots[bondSlotIndex].style.backgroundImage = "url('gun.png')";
-            bondSlotIndex = null;
+        if (bondIndexPos !== -1) {
+            // Correct click! Hit Bond
+            bondSlotIndices.splice(bondIndexPos, 1);
+            slots[index].style.backgroundImage = "url('gun.png')";
 
-            // Check if level time is up or if we proceed. Let's check win condition based on timer survival or score.
-            // Wait, the prompt says "Count down 60 seconds per level". Surviving the 60 seconds wins the level!
             if (timer <= 0) {
                 winLevel();
-            } else {
-                scheduleBondAppearance();
             }
-        } else {
-            // Clicked empty or wrong gun slot - minor penalty or just ignore? Let's treat as miss/wrong click or ignore. Prompt states "failed 3 times per level" specifically for not clicking bond in time. Let's make wrong clicks do nothing or count as miss. Let's keep it focused on the 3s timeout as the primary fail condition.
         }
     }
 
-    function triggerShotAnimation() {
+    function triggerShotAnimation(targetIndex) {
         gameActive = false;
-        clearTimeout(activeTimer);
+        clearAllTimers();
         clearInterval(timerInterval);
 
-        // Flash screen red for firing shot
+        // Flash screen red
         shotFlash.classList.add('flash');
         setTimeout(() => {
             shotFlash.classList.remove('flash');
@@ -455,42 +521,33 @@
             if (fails >= 3) {
                 showLossScreen();
             } else {
-                // Reset slot image if active
                 const slots = document.querySelectorAll('.slot');
-                if (bondSlotIndex !== null) {
-                    slots[bondSlotIndex].style.backgroundImage = "url('gun.png')";
-                    bondSlotIndex = null;
-                }
-                // Resume game for this level
+                slots.forEach(slot => slot.style.backgroundImage = "url('gun.png')");
+                bondSlotIndices = [];
+
                 gameActive = true;
                 timerInterval = setInterval(() => {
                     timer--;
                     updateHud();
                     if (timer <= 0) winLevel();
                 }, 1000);
-                scheduleBondAppearance();
+                scheduleBondAppearances();
             }
         }, 800);
     }
 
-    function triggerMiss() {
-        if (!gameActive) return;
-        // If timer runs out successfully without 3 fails, player wins level!
-        if (timer <= 0 && fails < 3) {
-            winLevel();
-        }
-    }
-
     function winLevel() {
         gameActive = false;
-        clearTimeout(activeTimer);
+        clearAllTimers();
         clearInterval(timerInterval);
         hud.classList.add('hidden');
         gameBoard.classList.add('hidden');
 
-        if (currentLevel < 4) {
+        if (currentLevel === 2) {
+            clear2Screen.classList.remove('hidden');
+        } else if (currentLevel === 1 || currentLevel === 3) {
             clearScreen.classList.remove('hidden');
-        } else {
+        } else if (currentLevel >= 4) {
             congratsScreen.classList.remove('hidden');
             startFireworks();
         }
@@ -498,6 +555,7 @@
 
     function handleClearClick() {
         clearScreen.classList.add('hidden');
+        clear2Screen.classList.add('hidden');
         currentLevel++;
         initGame();
     }
@@ -514,18 +572,15 @@
 
     function handleLossClick() {
         if (lossStatePhase === 0) {
-            // First click on loss screen: show kidnap1.png, remove text
             lossStatePhase = 1;
             lossScreen.style.backgroundImage = "url('kidnap1.png')";
             lossMsgContainer.style.display = "none";
         } else if (lossStatePhase === 1) {
-            // Second click: restart that level
             lossScreen.classList.add('hidden');
             initGame();
         }
     }
 
-    // Golden Fireworks Animation for Final Victory
     function startFireworks() {
         const canvas = document.getElementById('fireworks');
         const ctx = canvas.getContext('2d');
@@ -546,12 +601,11 @@
                     vy: Math.sin(angle) * speed,
                     alpha: 1,
                     decay: Math.random() * 0.015 + 0.01,
-                    color: `hsl(${Math.random() * 30 + 40}, 100%, 50%)` // Golden shades
+                    color: `hsl(${Math.random() * 30 + 40}, 100%, 50%)`
                 });
             }
         }
 
-        // Periodically launch fireworks
         let fwInterval = setInterval(() => {
             if (congratsScreen.classList.contains('hidden')) {
                 clearInterval(fwInterval);
@@ -567,7 +621,7 @@
             particles.forEach((p, index) => {
                 p.x += p.vx;
                 p.y += p.vy;
-                p.vy += 0.05; // gravity
+                p.vy += 0.05;
                 p.alpha -= p.decay;
 
                 if (p.alpha <= 0) {
